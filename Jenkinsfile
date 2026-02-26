@@ -2,11 +2,10 @@ pipeline {
     agent any
 
     stages {
-
         stage('Checkout') {
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/fredericEducentre/landing-page-example.git'
+                    url: 'https://github.com/TON_USERNAME/landing-page-example.git'
             }
         }
 
@@ -25,33 +24,31 @@ pipeline {
 
         stage('Deploy') {
             steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'alwaysdata-creds',
+                    usernameVariable: 'USER',
+                    passwordVariable: 'PASS'
+                )]) {
+                    sh '''
+                        echo "Connexion Alwaysdata..."
 
-                sshagent(['alwaysdata-ssh']) { 
-                    script {
-                        def USER = 'mouamar'
-                        def REMOTE_DIR = '/home/mouamar/www/landing-page-example'
+                        # Crée le dossier distant si nécessaire
+                        sshpass -p "$PASS" ssh -o StrictHostKeyChecking=no $USER@ssh-$USER.alwaysdata.net "mkdir -p www/landing-page-example"
 
-                        sh """
-                            echo "Connexion au serveur Alwaysdata avec clé SSH..."
+                        echo "Upload des fichiers..."
 
-                            ssh -o StrictHostKeyChecking=no ${USER}@ssh-${USER}.alwaysdata.net \
-                            "mkdir -p ${REMOTE_DIR} && rm -rf ${REMOTE_DIR}/*"
+                        sshpass -p "$PASS" scp -o StrictHostKeyChecking=no -r * $USER@ssh-$USER.alwaysdata.net:www/landing-page-example/
 
-                            echo "Déploiement des fichiers..."
-                            scp -o StrictHostKeyChecking=no -r ./* ${USER}@ssh-${USER}.alwaysdata.net:${REMOTE_DIR}/
-
-                            echo "Déploiement terminé."
-                        """
-                    }
+                        echo "Déploiement terminé."
+                    '''
                 }
-
             }
         }
     }
 
     post {
         success {
-            echo 'Déploiement réussi sur Alwaysdata avec clé SSH !'
+            echo 'Déploiement réussi sur Alwaysdata !'
         }
         failure {
             echo 'Échec du déploiement !'
